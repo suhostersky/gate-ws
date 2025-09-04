@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -30,8 +31,8 @@ func (b *WebSocket) handleIncomingMessages() {
 	for {
 		_, message, err := b.conn.ReadMessage()
 		if err != nil {
-			log.Println("Error reading:", err)
 			b.isConnected = false
+			log.Println("Error reading:", err)
 			return
 		}
 
@@ -56,6 +57,7 @@ func (b *WebSocket) monitorConnection() {
 			err := b.Connect() // Example, adjust parameters as needed
 			if err != nil {
 				log.Println("Reconnection failed:")
+				time.Sleep(time.Second * 5)
 			} else {
 				b.isConnected = true
 				go b.handleIncomingMessages() // Restart message handling
@@ -85,6 +87,7 @@ type WebSocket struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
 	isConnected  bool
+	mutex        sync.Mutex
 }
 
 type WebsocketOption func(*WebSocket)
@@ -232,5 +235,8 @@ func (b *WebSocket) sendAsJson(v interface{}) error {
 }
 
 func (b *WebSocket) send(message string) error {
-	return b.conn.WriteMessage(websocket.TextMessage, []byte(message))
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	err := b.conn.WriteMessage(websocket.TextMessage, []byte(message))
+	return err
 }
