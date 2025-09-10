@@ -18,12 +18,58 @@ import (
 
 const (
 	WEBSOCKET_TRADE_MAINNET = "wss://fx-ws.gateio.ws/v4/ws/usdt"
+	WEBSOCKET_SPOT_MAINNET  = "wss://api.gateio.ws/ws/v4/"
 
 	FUTURES_LOGIN       = "futures.login"
 	FUTURES_PING        = "futures.ping"
 	FUTURES_PONG        = "futures.pong"
 	FUTURES_ORDER_PLACE = "futures.order_place"
+
+	SPOT_LOGIN       = "spot.login"
+	SPOT_PING        = "spot.ping"
+	SPOT_PONG        = "spot.pong"
+	SPOT_ORDER_PLACE = "spot.order_place"
 )
+
+type Market string
+
+const (
+	Futures Market = "futures"
+	Spot    Market = "spot"
+)
+
+func (m Market) Order() string {
+	switch m {
+	case Futures:
+		return FUTURES_ORDER_PLACE
+	case Spot:
+		return SPOT_ORDER_PLACE
+	default:
+		return ""
+	}
+}
+
+func (m Market) Login() string {
+	switch m {
+	case Futures:
+		return FUTURES_LOGIN
+	case Spot:
+		return SPOT_LOGIN
+	default:
+		return ""
+	}
+}
+
+func (m Market) Ping() string {
+	switch m {
+	case Futures:
+		return FUTURES_PING
+	case Spot:
+		return SPOT_PING
+	default:
+		return ""
+	}
+}
 
 type MessageHandler func(message string) error
 
@@ -88,6 +134,7 @@ type WebSocket struct {
 	cancel       context.CancelFunc
 	isConnected  bool
 	mutex        sync.Mutex
+	market       Market
 }
 
 type WebsocketOption func(*WebSocket)
@@ -104,7 +151,7 @@ func WithMaxAliveTime(maxAliveTime string) WebsocketOption {
 	}
 }
 
-func NewGatePrivateWebSocket(url, apiKey, apiSecret string, handler MessageHandler, options ...WebsocketOption) *WebSocket {
+func NewGatePrivateWebSocket(market Market, url, apiKey, apiSecret string, handler MessageHandler, options ...WebsocketOption) *WebSocket {
 	c := &WebSocket{
 		url:          url,
 		apiKey:       apiKey,
@@ -112,6 +159,7 @@ func NewGatePrivateWebSocket(url, apiKey, apiSecret string, handler MessageHandl
 		maxAliveTime: "",
 		pingInterval: 20,
 		onMessage:    handler,
+		market:       market,
 	}
 
 	// Apply the provided options
@@ -158,7 +206,7 @@ func ping(b *WebSocket) {
 			currentTime := time.Now().Unix()
 			pingMessage := types.ApiRequest{
 				Time:    currentTime,
-				Channel: FUTURES_PING,
+				Channel: b.market.Ping(),
 			}
 
 			if err := b.sendAsJson(pingMessage); err != nil {
@@ -185,11 +233,11 @@ func (b *WebSocket) sendAuth() error {
 
 	authMessage := types.ApiRequest{
 		Time:    ts,
-		Channel: FUTURES_LOGIN,
+		Channel: b.market.Login(),
 		Event:   "api",
 		Payload: types.ApiPayload{
 			ApiKey:       b.apiKey,
-			Signature:    getApiSignature(b.apiSecret, FUTURES_LOGIN, []byte(""), ts),
+			Signature:    getApiSignature(b.apiSecret, b.market.Login(), []byte(""), ts),
 			Timestamp:    strconv.FormatInt(ts, 10),
 			RequestId:    requestId,
 			RequestParam: []byte(""),
@@ -215,7 +263,7 @@ func (b *WebSocket) PlaceOrder(params *types.OrderParam) error {
 	requestId := fmt.Sprintf("%d-%d", time.Now().UnixMilli(), 1)
 	orderPlace := types.ApiRequest{
 		Time:    ts,
-		Channel: FUTURES_ORDER_PLACE,
+		Channel: b.market.Order(),
 		Event:   "api",
 		Payload: types.ApiPayload{
 			RequestId:    requestId,
