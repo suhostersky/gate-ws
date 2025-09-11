@@ -19,14 +19,19 @@ type ApiPayload struct {
 }
 
 type OrderParam struct {
-	Contract   string `json:"contract"`
-	Size       int64  `json:"size,omitempty"`
-	Iceberg    int64  `json:"iceberg,omitempty"`
-	Price      string `json:"price,omitempty"`
-	Close      bool   `json:"close,omitempty"`
-	ReduceOnly bool   `json:"reduce_only,omitempty"`
-	Tif        string `json:"tif,omitempty"`
-	Text       string `json:"text,omitempty"`
-	AutoSize   string `json:"auto_size,omitempty"`
-	StpAct     bool   `json:"stp_act,omitempty"`
+	Contract     string `json:"contract"`
+	Size         int64  `json:"size,omitempty"`
+	Iceberg      int64  `json:"iceberg,omitempty"`
+	Price        string `json:"price,omitempty"`
+	Close        bool   `json:"close,omitempty"`
+	ReduceOnly   bool   `json:"reduce_only,omitempty"`
+	Tif          string `json:"tif,omitempty"`
+	Text         string `json:"text,omitempty"`
+	AutoSize     string `json:"auto_size,omitempty"`
+	StpAct       bool   `json:"stp_act,omitempty"`
+	Side         string `json:"side,omitempty"`
+	CurrencyPair string `json:"currency_pair,omitempty"`
+	Amount       string `json:"amount,omitempty"`
+	Type         string `json:"type,omitempty"`
+	TimeInForce  string `json:"time_in_force,omitempty"`
 }
