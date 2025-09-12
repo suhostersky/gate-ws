@@ -75,18 +75,23 @@ type MessageHandler func(message string) error
 
 func (b *WebSocket) handleIncomingMessages() {
 	for {
-		_, message, err := b.conn.ReadMessage()
-		if err != nil {
-			b.isConnected = false
-			log.Println("Error reading:", err)
+		select {
+		case <-b.ctx.Done():
 			return
-		}
-
-		if b.onMessage != nil {
-			err := b.onMessage(string(message))
+		default:
+			_, message, err := b.conn.ReadMessage()
 			if err != nil {
-				log.Println("Error handling message:", err)
+				b.isConnected = false
+				log.Println("Error reading:", err)
 				return
+			}
+
+			if b.onMessage != nil {
+				err := b.onMessage(string(message))
+				if err != nil {
+					log.Println("Error handling message:", err)
+					return
+				}
 			}
 		}
 	}
@@ -97,23 +102,20 @@ func (b *WebSocket) monitorConnection() {
 	defer ticker.Stop()
 
 	for {
-		<-ticker.C
-		if !b.isConnected && b.ctx.Err() == nil { // Check if disconnected and context not done
-			log.Println("Attempting to reconnect...")
-			err := b.Connect() // Example, adjust parameters as needed
-			if err != nil {
-				log.Println("Reconnection failed:")
-				time.Sleep(time.Second * 5)
-			} else {
-				b.isConnected = true
-				go b.handleIncomingMessages() // Restart message handling
-			}
-		}
-
 		select {
 		case <-b.ctx.Done():
-			return // Stop the routine if context is done
-		default:
+			return
+		case <-ticker.C:
+			if !b.isConnected && b.ctx.Err() == nil { // Check if disconnected and context not done
+				log.Println("Attempting to reconnect...")
+				err := b.Connect() // Example, adjust parameters as needed
+				if err != nil {
+					log.Println("Reconnection failed:")
+				} else {
+					b.isConnected = true
+					go b.handleIncomingMessages() // Restart message handling
+				}
+			}
 		}
 	}
 }
