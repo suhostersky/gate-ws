@@ -104,8 +104,12 @@ func (b *WebSocket) monitorConnection(done chan struct{}) {
 
 	for {
 		select {
+		case <-done:
+			return
 		case <-b.ctx.Done():
-			close(done)
+			if _, ok := <-done; ok {
+				close(done)
+			}
 			return
 		case <-ticker.C:
 			if !b.isConnected && b.ctx.Err() == nil { // Check if disconnected and context not done
