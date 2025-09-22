@@ -98,24 +98,18 @@ func (b *WebSocket) handleIncomingMessages() {
 	}
 }
 
-func (b *WebSocket) monitorConnection() {
+func (b *WebSocket) monitorConnection(done chan struct{}) {
 	ticker := time.NewTicker(time.Second * 5) // Check every 5 seconds
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-b.ctx.Done():
+			close(done)
 			return
 		case <-ticker.C:
 			if !b.isConnected && b.ctx.Err() == nil { // Check if disconnected and context not done
-				log.Println("Attempting to reconnect...")
-				err := b.Connect() // Example, adjust parameters as needed
-				if err != nil {
-					log.Println("Reconnection failed:")
-				} else {
-					b.isConnected = true
-					go b.handleIncomingMessages() // Restart message handling
-				}
+				b.Disconnect()
 			}
 		}
 	}
@@ -173,7 +167,7 @@ func NewGatePrivateWebSocket(market Market, url, apiKey, apiSecret string, handl
 	return c
 }
 
-func (b *WebSocket) Connect() error {
+func (b *WebSocket) Connect(done chan struct{}) error {
 	var err error
 	b.conn, _, err = websocket.DefaultDialer.Dial(b.url, nil)
 	if err != nil {
@@ -186,6 +180,7 @@ func (b *WebSocket) Connect() error {
 	b.isConnected = true
 
 	go b.handleIncomingMessages()
+	go b.monitorConnection(done)
 
 	b.ctx, b.cancel = context.WithCancel(context.Background())
 	go ping(b)
@@ -213,6 +208,7 @@ func ping(b *WebSocket) {
 
 			if err := b.sendAsJson(pingMessage); err != nil {
 				log.Println("Failed to send ping:", err)
+				b.Disconnect()
 				return
 			}
 		case <-b.ctx.Done():
