@@ -6,6 +6,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -185,7 +186,6 @@ func (b *WebSocket) Connect() error {
 	b.isConnected = true
 
 	go b.handleIncomingMessages()
-	go b.monitorConnection()
 
 	b.ctx, b.cancel = context.WithCancel(context.Background())
 	go ping(b)
@@ -285,6 +285,9 @@ func (b *WebSocket) sendAsJson(v interface{}) error {
 }
 
 func (b *WebSocket) send(message string) error {
+	if b.conn == nil {
+		return errors.New("websocket connection is nil")
+	}
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 	err := b.conn.WriteMessage(websocket.TextMessage, []byte(message))
