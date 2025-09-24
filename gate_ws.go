@@ -98,18 +98,13 @@ func (b *WebSocket) handleIncomingMessages() {
 	}
 }
 
-func (b *WebSocket) monitorConnection(done chan struct{}) {
+func (b *WebSocket) monitorConnection() {
 	ticker := time.NewTicker(time.Second * 5) // Check every 5 seconds
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-done:
-			return
 		case <-b.ctx.Done():
-			if _, ok := <-done; ok {
-				close(done)
-			}
 			return
 		case <-ticker.C:
 			if !b.isConnected && b.ctx.Err() == nil { // Check if disconnected and context not done
@@ -171,7 +166,7 @@ func NewGatePrivateWebSocket(market Market, url, apiKey, apiSecret string, handl
 	return c
 }
 
-func (b *WebSocket) Connect(done chan struct{}) error {
+func (b *WebSocket) Connect() error {
 	var err error
 	b.conn, _, err = websocket.DefaultDialer.Dial(b.url, nil)
 	if err != nil {
@@ -184,12 +179,16 @@ func (b *WebSocket) Connect(done chan struct{}) error {
 	b.isConnected = true
 
 	go b.handleIncomingMessages()
-	go b.monitorConnection(done)
+	go b.monitorConnection()
 
 	b.ctx, b.cancel = context.WithCancel(context.Background())
 	go ping(b)
 
 	return nil
+}
+
+func (b *WebSocket) Done() <-chan struct{} {
+	return b.ctx.Done()
 }
 
 func ping(b *WebSocket) {
