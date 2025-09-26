@@ -178,10 +178,10 @@ func (b *WebSocket) Connect() error {
 	}
 	b.isConnected = true
 
+	b.ctx, b.cancel = context.WithCancel(context.Background())
+
 	go b.handleIncomingMessages()
 	go b.monitorConnection()
-
-	b.ctx, b.cancel = context.WithCancel(context.Background())
 	go ping(b)
 
 	return nil
