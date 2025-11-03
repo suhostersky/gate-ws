@@ -188,6 +188,9 @@ func (b *WebSocket) Connect() error {
 }
 
 func (b *WebSocket) Done() <-chan struct{} {
+	if b == nil {
+		return nil
+	}
 	return b.ctx.Done()
 }
 
